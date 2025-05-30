@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from '../types';
-import { mockUsers } from '../data/mockData';
+import api from '../lib/api';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -8,7 +8,6 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   
-  // Auth actions
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   signup: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
@@ -16,7 +15,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: false,
+  isAuthenticated: !!localStorage.getItem('token'),
   user: null,
   isLoading: false,
   error: null,
@@ -25,26 +24,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     
     try {
-      // In a real application, this would be an API call
-      // For demo purposes, we'll use mock data
-      const user = mockUsers.find((u) => u.email === email);
+      const response = await api.post('/auth/signin', { email, password });
+      const { token, user } = response.data;
       
-      if (!user) {
-        throw new Error('Invalid credentials');
-      }
-      
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
-      // In production: handle JWT token storage
-      localStorage.setItem('token', 'mock-jwt-token');
-      
+      localStorage.setItem('token', token);
       set({ isAuthenticated: true, user, isLoading: false });
-    } catch (error) {
+    } catch (error: any) {
       set({ 
         isLoading: false, 
-        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+        error: error.response?.data?.message || 'An error occurred during login'
       });
+      throw error;
     }
   },
   
@@ -57,29 +47,23 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     
     try {
-      // In a real application, this would be an API call
-      // For demo purposes, we'll just simulate a successful signup
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
-      const newUser: User = {
-        id: `${mockUsers.length + 1}`,
+      const response = await api.post('/auth/signup', {
         email,
+        password,
         firstName,
-        lastName,
-        role: 'customer',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+        lastName
+      });
       
-      // In production: handle JWT token storage
-      localStorage.setItem('token', 'mock-jwt-token');
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
       
-      set({ isAuthenticated: true, user: newUser, isLoading: false });
-    } catch (error) {
+      set({ isAuthenticated: true, user, isLoading: false });
+    } catch (error: any) {
       set({ 
         isLoading: false, 
-        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+        error: error.response?.data?.message || 'An error occurred during signup'
       });
+      throw error;
     }
   },
   
@@ -87,18 +71,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     
     try {
-      // In a real application, this would be an API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
+      const response = await api.put('/auth/user', userData);
       set((state) => ({
-        user: state.user ? { ...state.user, ...userData } : null,
-        isLoading: false,
+        user: state.user ? { ...state.user, ...response.data } : null,
+        isLoading: false
       }));
-    } catch (error) {
+    } catch (error: any) {
       set({ 
         isLoading: false, 
-        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+        error: error.response?.data?.message || 'Failed to update user'
       });
+      throw error;
     }
   },
 }));
