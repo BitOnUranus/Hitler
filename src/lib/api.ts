@@ -5,7 +5,7 @@ import CryptoJS from 'crypto-js';
 const ENCRYPTION_KEY = 'your-secure-encryption-key-32chars!!';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: 'https://localhost:3000/api',
   headers: {
     'Content-Type': 'application/json',
   },
